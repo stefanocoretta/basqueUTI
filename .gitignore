@@ -1,0 +1,8 @@
+*.DS_Store
+
+data-raw/raw/audio/
+
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata

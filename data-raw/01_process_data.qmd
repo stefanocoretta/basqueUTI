@@ -1,0 +1,102 @@
+---
+title: "Process data"
+author: "Stefano Coretta"
+format: html
+---
+
+```{r}
+#| label: setup
+
+library(tidyverse)
+library(phonetisr)
+library(speakr)
+```
+
+
+## Forced alignment
+
+The text files exported from AAA contain the sentence on the first line, so we remove all the other lines from the text files.
+
+```{bash}
+folder="raw/audio"
+
+cd "$folder" || exit
+
+for file in *.txt; do
+  first_line=$(head -n 1 "$file")
+
+  echo "$first_line" > "$file"
+done
+```
+
+Now we can validate the corpus.
+
+```bash
+mfa validate --clean --single_speaker data-raw/raw/audio basque_cv
+```
+
+Let's transcribe the OOVs.
+
+```{r}
+oovs <- read_lines("raw/oovs_found_basque_cv.txt")
+
+repl <- c(
+  "cq" = "k",
+  "dd" = "ɟ",
+  "tt" = "c",
+  "rr" = "R",
+  "ll" = "ʎ",
+  "d" = "d̪",
+  "t" = "t̪",
+  "s" = "s̺",
+  "g" = "ɡ",
+  "ñ" = "ɲ",
+  "r" = "ɾ",
+  "R" = "r",
+  "x" = "ʃ",
+  "j" = "x",
+  "y" = "j",
+  "ü" = "y",
+  "z" = "s̻",
+  "q" = "k",
+  "ç" = "s",
+  "h" = ""
+)
+
+oovs_tra <- tibble(
+  word = str_to_lower(oovs)
+) |> 
+  arrange(word) |> 
+  distinct() |> 
+  mutate(
+    pron = str_replace_all(word, repl),
+    ipa = phonetise(pron, split = FALSE, sep = " ", diacritics = TRUE)
+  )
+
+write_tsv(oovs_tra |> select(word, ipa), "raw/oovs_transcribed.txt", col_names = FALSE)
+
+```
+
+And we can now add them to the MFA dictionary.
+
+```bash
+mfa model add_words basque_cv data-raw/raw/oovs_transcribed.txt
+```
+
+We can finally force-align the audio files.
+
+```bash
+mfa align --clean --verbose --single_speaker --fine_tune data-raw/raw/audio basque_cv basque_cv data-raw/raw/aligned/
+```
+
+## Get UTI data
+
+First, we process the TextGrids to extract only the phones from the target words, which we will use in AAA to extract spline data.
+
+```{r}
+praat_run("praat/01_extract_target.praat")
+```
+
+The new TextGrids are saved in `data-raw/raw/aligned_target/`. To import them in AAA, they need to be in the same folder as the `.txt` files exported from AAA (the original ones, with all the lines, not just the first).
+
+We extract all ultrasound frames from vowels to `data-raw/raw/splines/vowels.tsv`.

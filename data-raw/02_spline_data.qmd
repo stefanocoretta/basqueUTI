@@ -1,0 +1,40 @@
+---
+title: "Process spline data"
+author: "Stefano Coretta"
+format: html
+---
+
+```{r}
+#| label: setup
+
+library(tidyverse)
+library(rticulate)
+```
+
+
+```{r}
+vowels <- read_aaa("raw/splines/vowels.tsv")
+```
+
+```{r}
+vowels |> 
+  filter(spline == "DLC_Tongue") |> 
+  ggplot(aes(X, Y, group = frame_id)) +
+  geom_path(alpha = 0.25) +
+  coord_fixed() +
+  facet_grid(cols = vars(`Annotation Title`))
+```
+
+```{r}
+sibils <- read_aaa(c("raw/splines/sz.tsv", "raw/splines/x.tsv"))
+```
+
+```{r}
+sibils |> 
+  filter(spline == "DLC_Tongue") |> 
+  ggplot(aes(X, Y, group = frame_id)) +
+  geom_path(alpha = 0.25) +
+  coord_fixed() +
+  facet_wrap(vars(`Annotation Title`))
+```
+
